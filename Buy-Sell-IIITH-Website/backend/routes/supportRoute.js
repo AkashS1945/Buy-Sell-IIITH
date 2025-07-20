@@ -12,37 +12,12 @@ router.post('/chatbot', async (req, res) => {
   try {
     const { message, conversationHistory } = req.body;
 
-    // Enhanced system prompt for better marketplace context
-    const systemPrompt = `You are a helpful AI assistant for "Buy/Sell IIITH", a marketplace platform for IIIT Hyderabad students and staff. 
-
-Key features of our platform:
-- Users can buy and sell products with categories like electronics, furniture, clothing, books, beauty, sports, grocery, and others
-- Secure authentication with IIIT email addresses only
-- Product listings with detailed information including age, condition, warranty status, original box availability
-- Shopping cart functionality and order management
-- OTP-based order verification for secure transactions
-- User profiles with seller ratings and reviews
-- AI-powered support chat (that's you!)
-
-Common topics users ask about:
-1. How to register/login (IIIT email required)
-2. How to list products for sale
-3. How to buy products and use cart
-4. Order tracking and OTP verification
-5. Profile management
-6. Account security
-7. Payment and transaction process
-8. Product categories and search
-
-Always be helpful, friendly, and provide specific guidance. If users have technical issues, suggest they contact support directly. Keep responses concise but informative.`;
-
     const formattedHistory = conversationHistory.map(msg => ({
       role: msg.sender === 'user' ? 'user' : 'model',
       parts: [{ text: msg.text }]
     }));
 
     const contents = [
-      { role: 'model', parts: [{ text: systemPrompt }] },
       ...formattedHistory,
       { role: 'user', parts: [{ text: message }] }
     ];
