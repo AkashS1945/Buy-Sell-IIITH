@@ -57,7 +57,7 @@
 ```sh
    Download the Zip file and Extract it.
 ```
-### **Front-End **
+### Front-End
 
 ```sh
     cd Frontend (Navigate to Frontend Folder)
@@ -67,7 +67,7 @@
     npm run dev
 ```
 
-### **Back-End **
+### Back-End
 
 ```sh
     cd Backend (Navigate to Backend Folder)

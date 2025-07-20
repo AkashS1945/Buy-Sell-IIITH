@@ -1,81 +1,207 @@
-import express from "express";
-import User from "../models/userModel.js"; 
-import authMiddleware from "../middlewares/authMiddleware.js";
+import express from 'express';
+import Cart from '../models/cartModel.js';
+import Product from '../models/productModel.js';
 
 const router = express.Router();
 
-
-router.post("/add",authMiddleware, async (req, res) => {
-  const { userId, productId } = req.body;
-
-  try {
-    const updatedUser = await User.updateOne(
-      { _id: userId },
-      { $push: { itemsInCart: productId } }
-    );
-
-    if (updatedUser.modifiedCount === 0) {
-      return res.status(400).send("User not found or no changes made.");
+// Get cart items with populated product details
+router.get('/:userId', async (req, res) => {
+    try {
+        const { userId } = req.params;
+        
+        const cart = await Cart.findOne({ userId })
+            .populate({
+                path: 'products',
+                populate: {
+                    path: 'sellerId',
+                    select: 'firstName lastName email contactNumber'
+                }
+            });
+        
+        if (!cart) {
+            return res.status(200).json([]);
+        }
+        
+        // Return just the product IDs (to match your frontend expectation)
+        const productIds = cart.products.map(product => product._id.toString());
+        res.status(200).json(productIds);
+    } catch (error) {
+        console.error('Error fetching cart:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: 'Internal server error', 
+            error: error.message 
+        });
     }
-
-    console.log("Item added to cart successfully");
-
-    res.status(200).json({ message: "Item added to cart successfully" });
-  } catch (error) {
-    console.error("Error adding to cart:", error);
-    res.status(500).send(error.message);
-  }
 });
 
-
-// Get Cart Items
-router.get("/:id",authMiddleware, async (req, res) => {
-  try {
-    const user = await User.findById(req.params.id);
-    if (!user) return res.status(404).send("User not found");
-    res.status(200).json(user.itemsInCart);
-  } catch (error) {
-    res.status(500).send(error);
-  }
+// Get cart items with full product details (alternative endpoint)
+router.get('/details/:userId', async (req, res) => {
+    try {
+        const { userId } = req.params;
+        
+        const cart = await Cart.findOne({ userId })
+            .populate({
+                path: 'products',
+                populate: {
+                    path: 'sellerId',
+                    select: 'firstName lastName email contactNumber'
+                }
+            });
+        
+        if (!cart) {
+            return res.status(200).json([]);
+        }
+        
+        res.status(200).json(cart.products || []);
+    } catch (error) {
+        console.error('Error fetching cart details:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: 'Internal server error', 
+            error: error.message 
+        });
+    }
 });
 
-// Remove from Cart
-router.post("/remove",authMiddleware, async (req, res) => {
-  const { userId, productId } = req.body;
-  try {
-    const updatedUser = await User.updateOne(
-      { _id: userId },
-      { $pull: { itemsInCart: productId } } // Ensure this matches the field in your User model
-    );
+// Add item to cart
+router.post('/add', async (req, res) => {
+    try {
+        const { userId, productId } = req.body;
+        
+        if (!userId || !productId) {
+            return res.status(400).json({ 
+                success: false, 
+                message: 'User ID and Product ID are required' 
+            });
+        }
 
-    if (updatedUser.modifiedCount === 0) {
-      return res.status(400).send("User not found or no changes made.");
+        // Check if product exists
+        const product = await Product.findById(productId);
+        if (!product) {
+            return res.status(404).json({ 
+                success: false, 
+                message: 'Product not found' 
+            });
+        }
+
+        // Check if product is available
+        if (product.status !== 'available') {
+            return res.status(400).json({ 
+                success: false, 
+                message: 'Product is not available' 
+            });
+        }
+
+        // Check if user is trying to add their own product
+        if (product.sellerId.toString() === userId) {
+            return res.status(400).json({ 
+                success: false, 
+                message: 'You cannot add your own product to cart' 
+            });
+        }
+        
+        let cart = await Cart.findOne({ userId });
+        
+        if (!cart) {
+            cart = new Cart({ 
+                userId, 
+                products: [productId] 
+            });
+        } else {
+            if (!cart.products.includes(productId)) {
+                cart.products.push(productId);
+            } else {
+                return res.status(200).json({ 
+                    success: true, 
+                    message: 'Product already in cart' 
+                });
+            }
+        }
+        
+        await cart.save();
+        
+        res.status(200).json({ 
+            success: true, 
+            message: 'Product added to cart successfully' 
+        });
+    } catch (error) {
+        console.error('Error adding to cart:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: 'Internal server error', 
+            error: error.message 
+        });
     }
-
-    res.status(200).json({ message: "Item removed from cart" });
-  } catch (error) {
-    console.error("Error removing from cart:", error);
-    res.status(500).send(error.message);
-  }
 });
 
-// Final Order
-router.post("/order",authMiddleware, async (req, res) => {
-  const { userId } = req.body;
-  try {
-    const user = await User.findById(userId);
-    if (!user || user.itemsInCart.length === 0) {
-      return res.status(400).send("Cart is empty");
+// Remove item from cart
+router.post('/remove', async (req, res) => {
+    try {
+        const { userId, productId } = req.body;
+        
+        if (!userId || !productId) {
+            return res.status(400).json({ 
+                success: false, 
+                message: 'User ID and Product ID are required' 
+            });
+        }
+        
+        const cart = await Cart.findOne({ userId });
+        
+        if (!cart) {
+            return res.status(404).json({ 
+                success: false, 
+                message: 'Cart not found' 
+            });
+        }
+        
+        cart.products = cart.products.filter(id => id.toString() !== productId.toString());
+        await cart.save();
+        
+        res.status(200).json({ 
+            success: true, 
+            message: 'Product removed from cart successfully' 
+        });
+    } catch (error) {
+        console.error('Error removing from cart:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: 'Internal server error', 
+            error: error.message 
+        });
     }
+});
 
-    await User.updateOne(
-      { _id: userId },
-      { $set: { itemsInCart: [] } }
-    );
-    res.status(200).send("Order placed successfully");
-  } catch (error) {
-    res.status(500).send(error);
-  }
+// Clear entire cart
+router.delete('/clear/:userId', async (req, res) => {
+    try {
+        const { userId } = req.params;
+        
+        const cart = await Cart.findOne({ userId });
+        
+        if (!cart) {
+            return res.status(404).json({ 
+                success: false, 
+                message: 'Cart not found' 
+            });
+        }
+        
+        cart.products = [];
+        await cart.save();
+        
+        res.status(200).json({ 
+            success: true, 
+            message: 'Cart cleared successfully' 
+        });
+    } catch (error) {
+        console.error('Error clearing cart:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: 'Internal server error', 
+            error: error.message 
+        });
+    }
 });
 
 export default router;

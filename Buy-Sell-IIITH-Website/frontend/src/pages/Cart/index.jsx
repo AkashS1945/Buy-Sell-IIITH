@@ -3,7 +3,10 @@ import { getCartItems, removeFromCart } from '../../apicalls/cart';
 import { placeOrder } from "../../apicalls/orders";
 import { getProductById } from "../../apicalls/products"; 
 import { useUser } from "../../usercontext/UserContext";
-import { Spin, Button, message, Modal } from 'antd';
+import { Spin, Button, message, Modal, Card, Typography, Divider, Empty } from 'antd';
+import { ShoppingCartOutlined, DeleteOutlined, DollarOutlined, TagOutlined } from '@ant-design/icons';
+
+const { Title, Text } = Typography;
 
 const Cart = () => {
   const { user } = useUser();
@@ -18,50 +21,77 @@ const Cart = () => {
 
   const fetchCartItems = async () => {
     if (!user) return;
-
     setLoading(true);
     try {
       const response = await getCartItems(user._id);
+      console.log("Cart response:", response);
+      
+      if (response.status === 200 && response.data) {
+        const productIds = Array.isArray(response.data) ? response.data : [];
+        
+        if (productIds.length === 0) {
+          setCartProducts([]);
+          setTotalPrice(0);
+          setLoading(false);
+          return;
+        }
 
-      if (response.status === 200) {
-        fetchProductDetails(response.data);
-        // setCartProducts(response.data);
-        // calculateTotal(response.data);
+        const productPromises = productIds.map(async (id) => {
+          try {
+            const productResponse = await getProductById(id);
+            console.log("Product response for ID", id, ":", productResponse);
+            
+            if (productResponse.status === 201) {
+              // Handle different response structures
+              let productData = null;
+              if (productResponse.data?.data?.product) {
+                productData = productResponse.data.data.product;
+              } else if (productResponse.data?.product) {
+                productData = productResponse.data.product;
+              } else if (productResponse.data?.data) {
+                productData = productResponse.data.data;
+              }
+              
+              return productData;
+            }
+            return null;
+          } catch (error) {
+            console.error(`Failed to fetch product ${id}:`, error);
+            return null;
+          }
+        });
+        
+        const productResponses = await Promise.all(productPromises);
+        const validProducts = productResponses.filter(product => 
+          product && 
+          product._id && 
+          product.name && 
+          typeof product.price === 'number' &&
+          product.category
+        );
+        
+        console.log("Valid products:", validProducts);
+        
+        setCartProducts(validProducts);
+        calculateTotal(validProducts);
       }
     } catch (error) {
-      message.error('Failed to load cart items');
+      console.error("Failed to fetch cart items:", error);
+      message.error("Failed to load cart items");
     } finally {
       setLoading(false);
     }
   };
 
-
-  const fetchProductDetails = async (productIds) => {
-    try {
-      const productDetails = await Promise.all(
-        productIds.map(async (id) => {
-          const response = await getProductById(id);
-          return response.status === 201 ? response.data.product : null;
-        })
-      );
-      console.log(productDetails);
-      setCartProducts(productDetails.filter((product) => product !== null));
-      calculateTotal(productDetails);
-    } catch (error) {
-      console.error("Failed to fetch product details:", error);
-      message.error("Error fetching product details.");
-    }
-  };
-
-
-
   const calculateTotal = (items) => {
-    const total = items.reduce((sum, item) => sum + item.price, 0);
+    const total = items.reduce((sum, item) => {
+      const price = item && typeof item.price === 'number' ? item.price : 0;
+      return sum + price;
+    }, 0);
     setTotalPrice(total);
   };
 
-
-    const handleRemoveFromCart = async (productId) => {
+  const handleRemoveFromCart = async (productId) => {
     if (!user) return;
     setLoading(true);
     try {
@@ -89,78 +119,218 @@ const Cart = () => {
       if (response.status === 200) {
         setOrderOTP(response.data.otp);
         message.success('Order placed successfully!');
-
+        
         Modal.success({
-          title: 'Order Placed Successfully',
+          title: 'Order Placed Successfully! 🎉',
           content: (
-            <div>
-              <p>Your order has been placed successfully!</p>
-              <p>Your OTP for all items: {response.data.otp}</p>
-              <p>Please save this OTP to complete the transaction with sellers.</p>
+            <div className="space-y-3">
+              <p className="text-gray-700">Your order has been placed successfully!</p>
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                <p className="text-blue-800 font-medium">
+                  🔐 Your OTP: 
+                  <span className="font-mono text-lg ml-2 bg-blue-100 px-2 py-1 rounded">
+                    {response.data.otp}
+                  </span>
+                </p>
+              </div>
+              <p className="text-sm text-gray-600">Please save this OTP to complete the transaction with sellers.</p>
             </div>
           ),
+          width: 500,
         });
         setCartProducts([]);
         setTotalPrice(0);
       }
     } catch (error) {
+      console.error("Place order error:", error);
       message.error('Failed to place order');
     } finally {
       setLoading(false);
     }
   };
 
-  return (
-    <div className="p-6">
-      <h2 className="text-2xl font-bold mb-4">My Cart</h2>
+  const getProductImagePlaceholder = (category, productName) => {
+    const categoryEmojis = {
+      electronics: "📱💻📺⌚",
+      furniture: "🪑🛏️🚪🪞", 
+      clothing: "👕👗👔👠",
+      books: "📚📖📝📄",
+      beauty: "💄💅💋🧴",
+      sports: "⚽🏀🎾🏐",
+      grocery: "🍎🥛🍞🥗",
+      others: "📦🎁✨🛍️"
+    };
 
-      {loading ? (
-        <div className="flex justify-center items-center py-10">
-          <Spin size="large" />
+    const emojis = categoryEmojis[category || 'others'] || "📦✨🎁🛍️";
+    const emojiArray = emojis.split('');
+    const randomEmoji = emojiArray[Math.floor(Math.random() * emojiArray.length)];
+    
+    return (
+      <div className="w-24 h-24 bg-gradient-to-br from-indigo-100 to-purple-100 rounded-lg flex items-center justify-center text-2xl flex-shrink-0">
+        {randomEmoji}
+      </div>
+    );
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <div className="container mx-auto px-4 py-6 max-w-4xl">
+        
+        {/* Header */}
+        <div className="mb-8">
+          <Title level={2} className="text-2xl md:text-3xl font-bold text-gray-800 mb-2 flex items-center">
+            <ShoppingCartOutlined className="mr-3 text-indigo-600" />
+            Shopping Cart
+          </Title>
+          <Text className="text-gray-600">
+            {cartProducts.length} {cartProducts.length === 1 ? 'item' : 'items'} in your cart
+          </Text>
         </div>
-      ) : (
-        <>
-          <div className="grid gap-4">
-            {cartProducts.length > 0 ? (
-              cartProducts.map((item) => (
-                <div
-                  key={item._id}
-                  className="flex justify-between items-center border p-4 rounded-lg shadow-md bg-white"
-                >
-                  <div>
-                    <h3 className="text-lg font-semibold">{item.name}</h3>
-                    <p className="text-gray-600">{item.description}</p>
-                    <p className="text-green-600 font-bold">${item.price}</p>
-                    <p className="text-gray-500">Seller: {item.sellerId.firstName}</p>
+
+        {loading && cartProducts.length === 0 ? (
+          <div className="flex justify-center items-center py-20">
+            <div className="text-center">
+              <Spin size="large" />
+              <p className="mt-4 text-gray-600">Loading your cart...</p>
+            </div>
+          </div>
+        ) : cartProducts.length === 0 ? (
+          <div className="text-center py-20">
+            <div className="text-6xl text-gray-300 mb-6">🛒</div>
+            <Empty
+              description={
+                <div className="space-y-2">
+                  <Title level={4} className="text-gray-600">Your cart is empty</Title>
+                  <Text className="text-gray-500">Browse products and add them to your cart!</Text>
+                </div>
+              }
+            />
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            
+            {/* Cart Items */}
+            <div className="lg:col-span-2 space-y-4">
+              {cartProducts.map((product) => {
+                // Safety checks for product data
+                if (!product || !product._id) return null;
+                
+                return (
+                  <Card 
+                    key={product._id} 
+                    className="shadow-sm hover:shadow-md transition-shadow"
+                    styles={{ body: { padding: '16px' } }}
+                  >
+                    <div className="flex gap-4">
+                      {getProductImagePlaceholder(product.category, product.name)}
+                      
+                      <div className="flex-grow space-y-2">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <Title level={5} className="text-gray-800 mb-1 line-clamp-1">
+                              {product.name || 'Unknown Product'}
+                            </Title>
+                            <Text className="text-gray-500 text-sm line-clamp-2">
+                              {product.description || 'No description available'}
+                            </Text>
+                          </div>
+                          <Button
+                            type="text"
+                            danger
+                            icon={<DeleteOutlined />}
+                            onClick={() => handleRemoveFromCart(product._id)}
+                            className="flex-shrink-0 ml-2"
+                          />
+                        </div>
+                        
+                        <div className="flex justify-between items-center">
+                          <div className="flex items-center gap-3">
+                            <TagOutlined className="text-blue-500" />
+                            <Text className="text-sm text-gray-600 capitalize">
+                              {product.category || 'uncategorized'}
+                            </Text>
+                            <Text className="text-sm text-gray-500">
+                              • {product.age || 0} {(product.age === 1) ? 'year' : 'years'} old
+                            </Text>
+                          </div>
+                          <Text className="text-xl font-bold text-green-600">
+                            ${(product.price || 0).toFixed(2)}
+                          </Text>
+                        </div>
+
+                        {/* Product Features */}
+                        {(product.billAvailable || product.warrantyAvailable || 
+                          product.boxAvailable || product.accessoriesAvailable) && (
+                          <div className="flex gap-2 mt-2">
+                            {product.billAvailable && <span title="Bill Available" className="text-xs">📄</span>}
+                            {product.warrantyAvailable && <span title="Warranty Available" className="text-xs">🛡️</span>}
+                            {product.boxAvailable && <span title="Original Box" className="text-xs">📦</span>}
+                            {product.accessoriesAvailable && <span title="All Accessories" className="text-xs">🔌</span>}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </Card>
+                );
+              })}
+            </div>
+
+            {/* Order Summary */}
+            <div className="lg:col-span-1">
+              <Card className="shadow-sm sticky top-6">
+                <Title level={4} className="text-gray-800 mb-4 flex items-center">
+                  <DollarOutlined className="mr-2 text-green-600" />
+                  Order Summary
+                </Title>
+                
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    {cartProducts.map((product) => {
+                      if (!product || !product._id) return null;
+                      
+                      return (
+                        <div key={product._id} className="flex justify-between text-sm">
+                          <Text className="text-gray-600 line-clamp-1 flex-1 mr-2">
+                            {product.name || 'Unknown Product'}
+                          </Text>
+                          <Text className="text-gray-800 font-medium">
+                            ${(product.price || 0).toFixed(2)}
+                          </Text>
+                        </div>
+                      );
+                    })}
                   </div>
+                  
+                  <Divider className="my-4" />
+                  
+                  <div className="flex justify-between items-center text-lg font-semibold">
+                    <Text className="text-gray-800">Total:</Text>
+                    <Text className="text-2xl text-green-600">
+                      ${totalPrice.toFixed(2)}
+                    </Text>
+                  </div>
+                  
                   <Button
                     type="primary"
-                    danger
-                    onClick={() => handleRemoveFromCart(item._id)}
+                    size="large"
+                    className="w-full bg-indigo-600 hover:bg-indigo-700 border-indigo-600 hover:border-indigo-700"
+                    onClick={handlePlaceOrder}
+                    disabled={cartProducts.length === 0}
+                    loading={loading}
+                    icon={<ShoppingCartOutlined />}
                   >
-                    Remove
+                    Place Order
                   </Button>
+                  
+                  <Text className="text-xs text-gray-500 text-center block">
+                    By placing this order, you agree to our terms and conditions
+                  </Text>
                 </div>
-              ))
-            ) : (
-              <p className="text-gray-500 text-center">Your cart is empty.</p>
-            )}
+              </Card>
+            </div>
           </div>
-
-          <div className="mt-6 border-t pt-4">
-            <h3 className="text-xl font-bold">Total: ${totalPrice.toFixed(2)}</h3>
-            <Button
-              type="primary"
-              size="large"
-              className="mt-4 w-full"
-              onClick={handlePlaceOrder}
-              disabled={cartProducts.length === 0}
-            >
-              Place Order
-            </Button>
-          </div>
-        </>
-      )}
+        )}
+      </div>
     </div>
   );
 };

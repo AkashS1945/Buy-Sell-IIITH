@@ -1,65 +1,238 @@
+// import axios from "axios";
+
+// export const Registeruser = async (payload) => {
+//     try {
+//         const response = await axios.post('http://localhost:5000/api/users/register', payload);
+//         return response;
+//     } catch (error) {
+//         return error.message;
+//     }   
+// }
+
+
+
+// export const Loginuser = async (payload) => {
+//   try {
+//     const response = await axios.post('http://localhost:5000/api/users/login', payload);
+//     return response;
+//   } catch (error) {
+//     console.error('Error in Loginuser:', error.response?.data || error.message);
+//     return error.response || { status: 400, data: { msg: 'Login failed' } };
+//   }
+// };
+
+
+
+
+
+// export const GetCurrentUser = async () => { 
+//     try {
+//         // console.log("Token in getcurrentuser", localStorage.getItem('token'));
+//         const response = await axios.post('http://localhost:5000/api/users/get-current-user',null, {
+//             headers: {
+//                 'Authorization': `Bearer ${localStorage.getItem('token')}`
+//             }
+//         });
+//         // console.log("Response from getcurrentuser", response.data);
+//         return response.data.user;
+//     } catch (error) {
+//         console.error('Error fetching current user:', error);
+//         return error.message;
+//     }
+// }
+
+// // Update user information
+// export const updateUser = async (formData) => {
+//     try {
+//         console.log("Token in updateUser", localStorage.getItem('token'));
+//         const response = await axios.put('http://localhost:5000/api/users/update', formData, {
+//             headers: {
+//                 'Authorization': `Bearer ${localStorage.getItem('token')}`
+//             }
+//         });
+//         console.log("Response from updateUser", response.data);
+//         return {
+//             success: true,
+//             data: response.data,
+//         };
+//     } catch (error) {
+//         console.error('Error updating user:', error);
+//         return {
+//             success: false,
+//             message: error.message,
+//         };
+//     }
+// }
+
+
+
 import axios from "axios";
 
+const API_BASE_URL = 'http://localhost:5000/api/users';
+
+// Register user
 export const Registeruser = async (payload) => {
     try {
-        const response = await axios.post('http://localhost:5000/api/users/register', payload);
-        return response;
+        const response = await axios.post(`${API_BASE_URL}/register`, payload);
+        console.log('Registration successful:', response.data);
+        return {
+            success: true,
+            data: response.data,
+            status: response.status
+        };
     } catch (error) {
-        return error.message;
+        console.error('Registration error:', error.response?.data || error.message);
+        return {
+            success: false,
+            message: error.response?.data?.msg || error.message,
+            status: error.response?.status || 500
+        };
     }   
 }
 
-
-
+// Login user
 export const Loginuser = async (payload) => {
-  try {
-    const response = await axios.post('http://localhost:5000/api/users/login', payload);
-    return response;
-  } catch (error) {
-    console.error('Error in Loginuser:', error.response?.data || error.message);
-    return error.response || { status: 400, data: { msg: 'Login failed' } };
-  }
+    try {
+        const response = await axios.post(`${API_BASE_URL}/login`, payload);
+        console.log('Login successful:', response.data);
+        
+        // Store token in localStorage if login is successful
+        if (response.data.token) {
+            localStorage.setItem('token', response.data.token);
+        }
+        
+        return {
+            success: true,
+            data: response.data,
+            status: response.status
+        };
+    } catch (error) {
+        console.error('Login error:', error.response?.data || error.message);
+        return {
+            success: false,
+            message: error.response?.data?.msg || error.message,
+            status: error.response?.status || 500
+        };
+    }
 };
 
+// Get current user
+// export const GetCurrentUser = async () => { 
+//     try {
+//         const token = localStorage.getItem('token');
+//         if (!token) {
+//             throw new Error('No token found');
+//         }
+        
+//         console.log("Token in getcurrentuser", token);
+        
+//         const response = await axios.post(`${API_BASE_URL}/get-current-user`, null, {
+//             headers: {
+//                 'Authorization': `Bearer ${token}`
+//             }
+//         });
+        
+//         console.log("Response from getcurrentuser", response.data);
+//         return {
+//             success: true,
+//             data: response.data.user
+//         };
+//     } catch (error) {
+//         console.error('Error fetching current user:', error.response?.data || error.message);
+        
+//         // If token is invalid, remove it from localStorage
+//         if (error.response?.status === 401) {
+//             localStorage.removeItem('token');
+//         }
+        
+//         return {
+//             success: false,
+//             message: error.response?.data?.error || error.message
+//         };
+//     }
+// }
 
-
-
-
+// Get current user
 export const GetCurrentUser = async () => { 
     try {
-        // console.log("Token in getcurrentuser", localStorage.getItem('token'));
-        const response = await axios.post('http://localhost:5000/api/users/get-current-user',null, {
+        const token = localStorage.getItem('token');
+        if (!token) {
+            return {
+                success: false,
+                message: 'No token found'
+            };
+        }
+        
+        console.log("Token in getcurrentuser", token);
+        
+        const response = await axios.post(`${API_BASE_URL}/get-current-user`, null, {
             headers: {
-                'Authorization': `Bearer ${localStorage.getItem('token')}`
+                'Authorization': `Bearer ${token}`
             }
         });
-        // console.log("Response from getcurrentuser", response.data);
-        return response.data.user;
+        
+        console.log("Response from getcurrentuser", response.data);
+        return {
+            success: true,
+            data: response.data.user
+        };
     } catch (error) {
-        console.error('Error fetching current user:', error);
-        return error.message;
+        console.error('Error fetching current user:', error.response?.data || error.message);
+        
+        // If token is invalid, remove it from localStorage
+        if (error.response?.status === 401) {
+            localStorage.removeItem('token');
+        }
+        
+        return {
+            success: false,
+            message: error.response?.data?.error || error.message
+        };
     }
 }
 
 // Update user information
 export const updateUser = async (formData) => {
     try {
-        console.log("Token in updateUser", localStorage.getItem('token'));
-        const response = await axios.put('http://localhost:5000/api/users/update', formData, {
+        const token = localStorage.getItem('token');
+        if (!token) {
+            throw new Error('No token found');
+        }
+        
+        console.log("Token in updateUser", token);
+        console.log("Form data:", formData);
+        
+        const response = await axios.put(`${API_BASE_URL}/update`, formData, {
             headers: {
-                'Authorization': `Bearer ${localStorage.getItem('token')}`
+                'Authorization': `Bearer ${token}`
             }
         });
+        
         console.log("Response from updateUser", response.data);
         return {
             success: true,
             data: response.data,
         };
     } catch (error) {
-        console.error('Error updating user:', error);
+        console.error('Error updating user:', error.response?.data || error.message);
+        
+        // If token is invalid, remove it from localStorage
+        if (error.response?.status === 401) {
+            localStorage.removeItem('token');
+        }
+        
         return {
             success: false,
-            message: error.message,
+            message: error.response?.data?.msg || error.message,
         };
     }
+}
+
+// Logout user (helper function)
+export const logoutUser = () => {
+    localStorage.removeItem('token');
+    return {
+        success: true,
+        message: 'User logged out successfully'
+    };
 }

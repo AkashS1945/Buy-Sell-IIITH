@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Tabs, Spin, Empty, Card, Tag, message } from 'antd';
+import { Tabs, Spin, Empty, Card, Tag, message, Badge, Alert } from 'antd';
+import { ShoppingCartOutlined, DollarOutlined, ClockCircleOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
 import { getUserOrderHistory } from '../../apicalls/orders';
 import { useUser } from '../../usercontext/UserContext';
-
-const { TabPane } = Tabs;
 
 const OrdersHistory = () => {
   const { user } = useUser();
@@ -27,12 +26,27 @@ const OrdersHistory = () => {
       if (response.status === 200) {
         const { boughtItems: bought, soldItems: sold } = response.data;
         
-        const pending = bought.filter(order => order.status === 'pending');
-        const completed = bought.filter(order => order.status === 'completed');
+        // Filter out orders with missing essential data and log them
+        const validBought = bought.filter(order => order.productId && order.sellerId);
+        const validSold = sold.filter(order => order.productId && order.buyerId);
+        
+        // Log invalid orders for debugging
+        const invalidBought = bought.filter(order => !order.productId || !order.sellerId);
+        const invalidSold = sold.filter(order => !order.productId || !order.buyerId);
+        
+        if (invalidBought.length > 0) {
+          console.warn('Invalid bought orders:', invalidBought);
+        }
+        if (invalidSold.length > 0) {
+          console.warn('Invalid sold orders:', invalidSold);
+        }
+        
+        const pending = validBought.filter(order => order.status === 'pending');
+        const completed = validBought.filter(order => order.status === 'completed');
         
         setPendingOrders(pending);
         setBoughtItems(completed);
-        setSoldItems(sold);
+        setSoldItems(validSold);
       }
     } catch (error) {
       console.error('Failed to fetch order history:', error);
@@ -42,88 +56,236 @@ const OrdersHistory = () => {
     }
   };
 
-  const OrderCard = ({ order, type }) => (
-    <Card className="mb-4 shadow-sm hover:shadow-md transition-shadow">
-      <div className="flex justify-between items-start">
-        <div className="flex-grow">
-          <h3 className="text-lg font-semibold">{order.productId.name}</h3>
-          <p className="text-gray-600">Transaction ID: {order.transactionId}</p>
-          <p className="text-green-600 font-bold">Amount: ${order.amount.toFixed(2)}</p>
-          {type === 'pending' && (
-            <p className="text-blue-600 mt-2">
-              OTP for verification: {order.plainOTP}
-            </p>
-          )}
-          <div className="mt-2">
-            <p className="text-gray-500">
-              Seller: {order.sellerId.firstName}
-            </p>
-            <p className="text-gray-500">
-              Date: {new Date(order.createdAt).toLocaleDateString()}
-            </p>
+  const OrderCard = ({ order, type }) => {
+    // Safety checks for all properties
+    const productName = order.productId?.name || 'Product information unavailable';
+    const transactionId = order.transactionId || 'N/A';
+    const amount = order.amount || 0;
+    const status = order.status || 'unknown';
+    const createdAt = order.createdAt ? new Date(order.createdAt) : new Date();
+    const plainOTP = order.plainOTP || 'N/A';
+    
+    // Different data based on order type
+    let sellerOrBuyerName = 'Unknown';
+    let sellerOrBuyerLabel = '';
+    
+    if (type === 'sold') {
+      sellerOrBuyerName = order.buyerId?.firstName || 'Unknown';
+      sellerOrBuyerLabel = 'Buyer';
+    } else {
+      sellerOrBuyerName = order.sellerId?.firstName || 'Unknown';
+      sellerOrBuyerLabel = 'Seller';
+    }
+    
+    // Check if essential data is missing
+    const hasIncompleteData = !order.productId || (!order.sellerId && type !== 'sold') || (!order.buyerId && type === 'sold');
+
+    return (
+      <Card 
+        className="mb-4 shadow-sm hover:shadow-md transition-all duration-300 border-l-4 border-l-indigo-500"
+        styles={{ body: { padding: '16px' } }}
+      >
+        {hasIncompleteData && (
+          <Alert
+            message="Incomplete Order Data"
+            description="Some information for this order is missing. Please contact support if this persists."
+            type="warning"
+            showIcon
+            icon={<ExclamationCircleOutlined />}
+            className="mb-4"
+          />
+        )}
+        
+        <div className="flex flex-col lg:flex-row lg:justify-between lg:items-start gap-4">
+          <div className="flex-grow space-y-3">
+            {/* Product Name */}
+            <div>
+              <h3 className="text-lg font-semibold text-gray-800 mb-1">
+                {productName}
+              </h3>
+              <p className="text-sm text-gray-500">
+                Transaction ID: <span className="font-mono">{transactionId}</span>
+              </p>
+            </div>
+
+            {/* Amount */}
+            <div className="flex items-center gap-2">
+              <DollarOutlined className="text-green-600" />
+              <span className="text-xl font-bold text-green-600">
+                ${amount.toFixed(2)}
+              </span>
+            </div>
+
+            {/* OTP for pending orders */}
+            {type === 'pending' && plainOTP && plainOTP !== 'N/A' && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                <p className="text-blue-800 font-medium">
+                  🔐 OTP for verification: 
+                  <span className="font-mono text-lg ml-2 bg-blue-100 px-2 py-1 rounded">
+                    {plainOTP}
+                  </span>
+                </p>
+              </div>
+            )}
+
+            {/* Additional Info */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm text-gray-600">
+              <div className="space-y-1">
+                <p>
+                  <span className="font-medium">{sellerOrBuyerLabel}:</span> {sellerOrBuyerName}
+                </p>
+                <p>
+                  <span className="font-medium">Date:</span> {createdAt.toLocaleDateString()}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Status Tag */}
+          <div className="flex-shrink-0">
+            <Tag 
+              color={status === 'completed' ? 'green' : 'gold'} 
+              className="px-3 py-1 text-sm font-medium"
+              icon={status === 'completed' ? <ShoppingCartOutlined /> : <ClockCircleOutlined />}
+            >
+              {status.toUpperCase()}
+            </Tag>
           </div>
         </div>
-        <Tag color={order.status === 'completed' ? 'green' : 'gold'} className="ml-4">
-          {order.status.toUpperCase()}
-        </Tag>
-      </div>
-    </Card>
+      </Card>
+    );
+  };
+
+  const EmptyState = ({ message, icon }) => (
+    <div className="text-center py-16">
+      <div className="text-6xl text-gray-300 mb-4">{icon}</div>
+      <Empty
+        description={
+          <span className="text-gray-500 text-lg">{message}</span>
+        }
+        className="my-4"
+      />
+    </div>
   );
 
-  const EmptyState = ({ message }) => (
-    <Empty
-      description={message}
-      className="my-8"
-    />
-  );
+  const tabItems = [
+    {
+      key: 'pending',
+      label: (
+        <span className="flex items-center gap-2">
+          <ClockCircleOutlined />
+          <span className="hidden sm:inline">Pending Orders</span>
+          <span className="sm:hidden">Pending</span>
+          {pendingOrders.length > 0 && (
+            <Badge count={pendingOrders.length} size="small" />
+          )}
+        </span>
+      ),
+      children: (
+        <div className="min-h-96">
+          {pendingOrders.length > 0 ? (
+            <div className="space-y-4">
+              {pendingOrders.map(order => (
+                <OrderCard key={order._id || Math.random()} order={order} type="pending" />
+              ))}
+            </div>
+          ) : (
+            <EmptyState message="No pending orders" icon="⏳" />
+          )}
+        </div>
+      )
+    },
+    {
+      key: 'bought',
+      label: (
+        <span className="flex items-center gap-2">
+          <ShoppingCartOutlined />
+          <span className="hidden sm:inline">Purchase History</span>
+          <span className="sm:hidden">Purchases</span>
+          {boughtItems.length > 0 && (
+            <Badge count={boughtItems.length} size="small" />
+          )}
+        </span>
+      ),
+      children: (
+        <div className="min-h-96">
+          {boughtItems.length > 0 ? (
+            <div className="space-y-4">
+              {boughtItems.map(order => (
+                <OrderCard key={order._id || Math.random()} order={order} type="bought" />
+              ))}
+            </div>
+          ) : (
+            <EmptyState message="No purchase history" icon="🛍️" />
+          )}
+        </div>
+      )
+    },
+    {
+      key: 'sold',
+      label: (
+        <span className="flex items-center gap-2">
+          <DollarOutlined />
+          <span className="hidden sm:inline">Sales History</span>
+          <span className="sm:hidden">Sales</span>
+          {soldItems.length > 0 && (
+            <Badge count={soldItems.length} size="small" />
+          )}
+        </span>
+      ),
+      children: (
+        <div className="min-h-96">
+          {soldItems.length > 0 ? (
+            <div className="space-y-4">
+              {soldItems.map(order => (
+                <OrderCard key={order._id || Math.random()} order={order} type="sold" />
+              ))}
+            </div>
+          ) : (
+            <EmptyState message="No sales history" icon="💰" />
+          )}
+        </div>
+      )
+    }
+  ];
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center min-h-screen">
-        <Spin size="large" />
+      <div className="flex justify-center items-center min-h-screen bg-gray-50">
+        <div className="text-center">
+          <Spin size="large" />
+          <p className="mt-4 text-gray-600">Loading your orders...</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="p-6 max-w-4xl mx-auto">
-      <h2 className="text-2xl font-bold mb-6">Orders History</h2>
-      
-      <Tabs 
-        activeKey={activeTab}
-        onChange={setActiveTab}
-        className="bg-white rounded-lg shadow-sm p-4"
-      >
-        <TabPane tab="Pending Orders" key="pending">
-          {pendingOrders.length > 0 ? (
-            pendingOrders.map(order => (
-              <OrderCard key={order._id} order={order} type="pending" />
-            ))
-          ) : (
-            <EmptyState message="No pending orders" />
-          )}
-        </TabPane>
-
-        <TabPane tab="Purchase History" key="bought">
-          {boughtItems.length > 0 ? (
-            boughtItems.map(order => (
-              <OrderCard key={order._id} order={order} type="bought" />
-            ))
-          ) : (
-            <EmptyState message="No purchase history" />
-          )}
-        </TabPane>
-
-        <TabPane tab="Sales History" key="sold">
-          {soldItems.length > 0 ? (
-            soldItems.map(order => (
-              <OrderCard key={order._id} order={order} type="sold" />
-            ))
-          ) : (
-            <EmptyState message="No sales history" />
-          )}
-        </TabPane>
-      </Tabs>
+    <div className="min-h-screen bg-gray-50">
+      <div className="container mx-auto px-4 py-6 max-w-6xl">
+        {/* Header */}
+        <div className="mb-8">
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-800 mb-2">
+            Orders History
+          </h1>
+          <p className="text-gray-600">Track your purchases and sales</p>
+        </div>
+        
+        {/* Tabs Container */}
+        <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
+          <Tabs 
+            activeKey={activeTab}
+            onChange={setActiveTab}
+            items={tabItems}
+            className="p-6"
+            size="large"
+            tabBarStyle={{
+              marginBottom: '24px',
+              borderBottom: '2px solid #f0f0f0'
+            }}
+          />
+        </div>
+      </div>
     </div>
   );
 };
