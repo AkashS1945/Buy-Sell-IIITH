@@ -1,13 +1,14 @@
 import axios from "axios";
 
+const BASE_URL = "http://localhost:5000";
 export const placeOrder = async (buyerId, cartItems) => {
   try {
-    const response = await axios.post("http://localhost:5000/api/orders/place-order", {
+    const response = await axios.post(`${BASE_URL}/api/orders/place-order`, {
       buyerId: buyerId,
       cartItems: cartItems
     },{
       headers: {
-        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      'Authorization': `Bearer ${localStorage.getItem('token')}`
       }
     });
     return response;
@@ -18,7 +19,7 @@ export const placeOrder = async (buyerId, cartItems) => {
 
 export const getUserOrderHistory = async (userId) => {
   try {
-    const response = await axios.get(`http://localhost:5000/api/orders/order-history/${userId}`, {
+    const response = await axios.get(`${BASE_URL}/api/orders/order-history/${userId}`, {
       headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
       }
@@ -31,7 +32,7 @@ export const getUserOrderHistory = async (userId) => {
 
 export const getSellerPendingOrders = async (sellerId) => {
   try {
-    const response = await axios.get(`http://localhost:5000/api/orders/seller-pending-orders/${sellerId}`, {
+    const response = await axios.get(`${BASE_URL}/api/orders/seller-pending-orders/${sellerId}`, {
       headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
       }
@@ -44,7 +45,7 @@ export const getSellerPendingOrders = async (sellerId) => {
 
 export const verifyAndCompleteOrder = async (orderId, otp) => {
   try {
-    const response = await axios.post("http://localhost:5000/api/orders/verify-complete-order", {
+    const response = await axios.post(`${BASE_URL}/api/orders/verify-complete-order`, {
       orderId: orderId,
       otp: otp
     },{

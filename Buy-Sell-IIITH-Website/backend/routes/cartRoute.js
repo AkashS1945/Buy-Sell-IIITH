@@ -174,34 +174,23 @@ router.post('/remove', async (req, res) => {
 });
 
 // Clear entire cart
-router.delete('/clear/:userId', async (req, res) => {
+router.delete('/clear/:userId', authMiddleware, async (req, res) => {
     try {
-        const { userId } = req.params;
-        
-        const cart = await Cart.findOne({ userId });
-        
-        if (!cart) {
-            return res.status(404).json({ 
-                success: false, 
-                message: 'Cart not found' 
-            });
-        }
-        
-        cart.products = [];
-        await cart.save();
-        
-        res.status(200).json({ 
-            success: true, 
-            message: 'Cart cleared successfully' 
-        });
+      const { userId } = req.params;
+      
+      await Cart.deleteMany({ userId });
+      
+      res.status(200).json({
+        success: true,
+        message: 'Cart cleared successfully'
+      });
     } catch (error) {
-        console.error('Error clearing cart:', error);
-        res.status(500).json({ 
-            success: false, 
-            message: 'Internal server error', 
-            error: error.message 
-        });
+      console.error('Error clearing cart:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to clear cart'
+      });
     }
-});
+  });
 
 export default router;

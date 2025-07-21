@@ -13,6 +13,8 @@ import {
   CheckCircleOutlined
 } from '@ant-design/icons';
 
+const BASE_URL = "http://localhost:5000";
+
 function Register() {
   const [errors, setErrors] = useState({});
   const [showPassword, setShowPassword] = useState(false);
@@ -47,7 +49,7 @@ function Register() {
   const onFinish = async (values) => {
     setLoading(true);
     try {
-      const response = await axios.post('http://localhost:5000/api/users/register', values);
+      const response = await axios.post(`${BASE_URL}/api/users/register`, values);
 
       if (response.status === 201) {
         message.success('Account created successfully! Please sign in to continue.');
@@ -288,7 +290,7 @@ function Register() {
                   type={showPassword ? "text" : "password"}
                   autoComplete="new-password"
                   required
-                  placeholder="Create a strong password"
+                  placeholder="Create a password"
                   value={formData.password}
                   onChange={handleInputChange}
                   className={`block w-full appearance-none rounded-md border px-3 py-2 pr-10 placeholder-gray-400 shadow-sm focus:outline-none sm:text-sm ${

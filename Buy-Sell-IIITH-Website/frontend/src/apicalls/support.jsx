@@ -1,9 +1,11 @@
 import axios from 'axios';
 
+const BASE_URL = "http://localhost:5000";
+
 export const callGeminiAPI = async (message, conversationHistory) => {
   try {
     console.log("conversationHistory", conversationHistory);
-    const response = await axios.post("http://localhost:5000/api/support/chatbot", { 
+    const response = await axios.post(`${BASE_URL}/api/support/chatbot`, { 
       message: message, 
       conversationHistory: conversationHistory 
     });

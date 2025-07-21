@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { getCartItems, removeFromCart } from '../../apicalls/cart';
-import { placeOrder } from "../../apicalls/orders";
 import { getProductById } from "../../apicalls/products"; 
 import { useUser } from "../../usercontext/UserContext";
 import { Spin, Button, message, Modal, Card, Typography, Divider, Empty } from 'antd';
 import { ShoppingCartOutlined, DeleteOutlined, DollarOutlined, TagOutlined } from '@ant-design/icons';
+import { addToCart, removeFromCart, getCartItems, clearCart } from '../../apicalls/cart';
+import { placeOrder } from "../../apicalls/orders";
 
 const { Title, Text } = Typography;
 
@@ -112,38 +112,46 @@ const Cart = () => {
 
   const handlePlaceOrder = async () => {
     if (!user || cartProducts.length === 0) return;
-
+  
     setLoading(true);
     try {
       const response = await placeOrder(user._id, cartProducts);
+      
       if (response.status === 200) {
-        setOrderOTP(response.data.otp);
-        message.success('Order placed successfully!');
+        await clearCart(user._id);
         
-        Modal.success({
-          title: 'Order Placed Successfully! 🎉',
-          content: (
-            <div className="space-y-3">
-              <p className="text-gray-700">Your order has been placed successfully!</p>
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                <p className="text-blue-800 font-medium">
-                  🔐 Your OTP: 
-                  <span className="font-mono text-lg ml-2 bg-blue-100 px-2 py-1 rounded">
-                    {response.data.otp}
-                  </span>
-                </p>
-              </div>
-              <p className="text-sm text-gray-600">Please save this OTP to complete the transaction with sellers.</p>
-            </div>
-          ),
-          width: 500,
-        });
         setCartProducts([]);
         setTotalPrice(0);
+        
+        message.success(`${cartProducts.length} order(s) placed successfully! 🎉`);
+        
+        if (response.data.otp) {
+          setOrderOTP(response.data.otp);
+          Modal.info({
+            title: 'Order Placed Successfully!',
+            content: (
+              <div className="space-y-4">
+                <p>Your order has been placed. Here's your OTP for delivery verification:</p>
+                <div className="bg-blue-50 p-4 rounded-lg text-center">
+                  <p className="text-2xl font-mono font-bold text-blue-600">
+                    {response.data.otp}
+                  </p>
+                </div>
+                <p className="text-sm text-gray-600">
+                  Please provide this OTP to the seller during delivery.
+                </p>
+              </div>
+            ),
+            width: 400,
+          });
+        }
+      } else {
+        throw new Error('Order placement failed');
       }
+      
     } catch (error) {
-      console.error("Place order error:", error);
-      message.error('Failed to place order');
+      console.error('Error placing orders:', error);
+      message.error('Failed to place orders. Please try again.');
     } finally {
       setLoading(false);
     }

@@ -29,10 +29,9 @@ const Support = () => {
   const messageListRef = useRef(null);
   const inputRef = useRef(null);
 
-  // Initialize with welcome message
   useEffect(() => {
     const welcomeMessage = {
-      text: "👋 Hello! I'm your AI support assistant. I'm here to help you with any questions about our marketplace. How can I assist you today?",
+      text: "Hello! I'm your AI support assistant. I'm here to help you with any questions",
       sender: 'bot',
       timestamp: new Date()
     };
@@ -65,7 +64,6 @@ const Support = () => {
     setLoading(true);
     setIsTyping(true);
 
-    // Focus back to input for better UX
     setTimeout(() => {
       inputRef.current?.focus();
     }, 100);
@@ -84,7 +82,7 @@ const Support = () => {
             timestamp: new Date()
           }
         ]);
-      }, 500); // Small delay for better UX
+      }, 500);
 
     } catch (error) {
       console.error('Error with chatbot:', error);
@@ -201,7 +199,7 @@ const Support = () => {
             Support Chat
           </Title>
           <Text className="text-gray-600">
-            Get instant help from our AI assistant or connect with our support team
+            Get help from our AI assistant
           </Text>
         </div>
 
@@ -295,12 +293,6 @@ const Support = () => {
                 </Button>
               </div>
             </form>
-            
-            <div className="mt-4 text-center">
-              <Text className="text-xs text-gray-500">
-                💡 Tip: Ask about products, orders, payments, or any marketplace features
-              </Text>
-            </div>
           </div>
         </Card>
 
@@ -311,7 +303,7 @@ const Support = () => {
             onClick={() => setUserInput("How do I buy a product?")}
             styles={{ body: { padding: '16px' } }}
           >
-            <div className="text-blue-600 text-2xl mb-2">🛒</div>
+            <div className="text-blue-600 text-2xl mb-2">How to Buy</div>
             <Text className="font-medium">How to Buy</Text>
           </Card>
           
@@ -320,7 +312,7 @@ const Support = () => {
             onClick={() => setUserInput("How do I sell a product?")}
             styles={{ body: { padding: '16px' } }}
           >
-            <div className="text-green-600 text-2xl mb-2">💰</div>
+            <div className="text-green-600 text-2xl mb-2">How to Sell</div>
             <Text className="font-medium">How to Sell</Text>
           </Card>
           
@@ -329,7 +321,7 @@ const Support = () => {
             onClick={() => setUserInput("I need help with my order")}
             styles={{ body: { padding: '16px' } }}
           >
-            <div className="text-orange-600 text-2xl mb-2">📦</div>
+            <div className="text-orange-600 text-2xl mb-2">Order Help</div>
             <Text className="font-medium">Order Help</Text>
           </Card>
         </div>

@@ -5,6 +5,8 @@ import { message } from 'antd';
 import ReCAPTCHA from 'react-google-recaptcha';
 import { EyeInvisibleOutlined, EyeTwoTone, UserOutlined, LockOutlined, ShoppingCartOutlined, SafetyOutlined } from '@ant-design/icons';
 
+const BASE_URL = "http://localhost:5000";
+
 function Login() {
   const navigate = useNavigate();
   const [errors, setErrors] = useState({});
@@ -38,7 +40,7 @@ function Login() {
         recaptchaToken: recaptchaToken
       };
 
-      const response = await axios.post('http://localhost:5000/api/users/login', loginData);
+      const response = await axios.post(`${BASE_URL}/api/users/login`, loginData);
       
       if (response.status === 201 && response.data.token) {
         localStorage.setItem('token', response.data.token);
