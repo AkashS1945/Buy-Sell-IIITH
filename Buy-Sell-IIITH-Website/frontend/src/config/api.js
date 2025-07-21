@@ -3,7 +3,7 @@ const config = {
     API_BASE_URL: "http://localhost:5000"
   },
   production: {
-    API_BASE_URL: "https://your-backend-app.onrender.com"
+    API_BASE_URL: "https://buy-sell-iiith-backend-luzb.onrender.com"
   }
 };
 
