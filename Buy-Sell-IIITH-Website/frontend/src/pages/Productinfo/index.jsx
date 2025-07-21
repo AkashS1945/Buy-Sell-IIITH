@@ -49,33 +49,39 @@ const Productinfo = () => {
       const response = await getProductById(id);
       console.log("Product fetch response:", response);
       console.log("Response data:", response.data);
+      console.log("Response status:", response.status);
       
-      if (response.status === 201) {
-        // Check multiple possible data structures
+      if ((response.status === 200 || response.status === 201) && response.data) {
         let productData = null;
         
-        if (response.data?.data?.product) {
-          productData = response.data.data.product;
-        } else if (response.data?.product) {
-          productData = response.data.product;
-        } else if (response.data?.data) {
+        if (response.data.success && response.data.data) {
           productData = response.data.data;
+        } else if (response.data.data) {
+          productData = response.data.data;
+        } else if (response.data.product) {
+          productData = response.data.product;
         }
         
         console.log("Extracted product data:", productData);
         
-        if (productData) {
+        if (productData && productData._id) {
           setProduct(productData);
         } else {
-          console.error("No product data found in response");
-          message.error("Product not found");
+          console.error("No valid product data found in response");
+          console.error("Response structure:", response.data);
+          message.error("Product data is incomplete");
         }
       } else {
+        console.error("Invalid response status or missing data:", response.status, response.data);
         message.error("Product not found");
       }
     } catch (error) {
       console.error("Failed to fetch product details:", error);
-      message.error("Failed to load product details");
+      if (error.response?.status === 404) {
+        message.error("Product not found");
+      } else {
+        message.error("Failed to load product details");
+      }
     } finally {
       setPageLoading(false);
     }
@@ -86,7 +92,9 @@ const Productinfo = () => {
     try {
       const response = await getCartItems(user._id);
       if (response.status === 200 && response.data && Array.isArray(response.data)) {
-        setIsInCart(response.data.includes(id));
+        // Check if product is in cart by looking at product IDs
+        const isProductInCart = response.data.some(item => item._id === id);
+        setIsInCart(isProductInCart);
       }
     } catch (error) {
       console.error("Error checking cart status:", error);

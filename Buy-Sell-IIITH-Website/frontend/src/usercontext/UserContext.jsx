@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { GetCurrentUser } from "../apicalls/users";
 import { message } from "antd";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 
 const UserContext = createContext();
 
@@ -10,65 +10,86 @@ export const UserProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [initialized, setInitialized] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
 
   useEffect(() => {
     const fetchUser = async () => {
+      console.log("fetchUser called - Current location:", location.pathname);
+      
       try {
         setLoading(true);
+        const token = localStorage.getItem('token');
+        
+        console.log("Token from localStorage:", token ? "EXISTS" : "NOT FOUND");
+        
+        if (!token) {
+          console.log("No token found - setting user to null");
+          setUser(null);
+          setLoading(false);
+          setInitialized(true);
+          return;
+        }
+
         const response = await GetCurrentUser();
         
-        console.log("Response from fetchUser:", response);
         
-        if (response.success && response.data) {
-          console.log("User is authenticated:", response.data);
+        if (response && response.success && response.data) {
           setUser(response.data);
         } else {
-          console.log("User is not authenticated. Redirecting to login page");
           setUser(null);
           localStorage.removeItem("token");
-          navigate("/login", { replace: true });
         }
       } catch (error) {
-        console.error("Error fetching user:", error);
+        console.error("Error in fetchUser:", error);
+        console.log("Removing token due to error");
         setUser(null);
         localStorage.removeItem("token");
-        navigate("/login", { replace: true });
       } finally {
+        console.log("fetchUser completed");
         setLoading(false);
         setInitialized(true);
       }
     };
 
-    // Only run once when component mounts
     if (!initialized) {
-      const token = localStorage.getItem('token');
-      if (token) {
-        fetchUser();
-      } else {
-        setUser(null);
-        setLoading(false);
-        setInitialized(true);
-        navigate("/login", { replace: true });
-      }
+      console.log("UserProvider initializing...");
+      fetchUser();
     }
-  }, [initialized, navigate]); // Only depend on initialized and navigate
+  }, [initialized]);
 
   const clearUser = () => {
+    console.log("Clearing user data");
     setUser(null);
     localStorage.removeItem("token");
     navigate("/login", { replace: true });
   };
 
-  // Don't render children until we've determined authentication status
-  if (loading || !initialized) {
-    return <div>Loading...</div>;
-  }
+  const contextValue = {
+    user,
+    setUser,
+    clearUser,
+    loading,
+    initialized
+  };
+
+  console.log("UserContext providing:", { 
+    user: user ? `User: ${user.firstName} ${user.lastName}` : null, 
+    loading, 
+    initialized,
+    location: location.pathname
+  });
 
   return (
-    <UserContext.Provider value={{ user, setUser, clearUser }}>
+    <UserContext.Provider value={contextValue}>
       {children}
     </UserContext.Provider>
   );
 };
 
-export const useUser = () => useContext(UserContext);
+export const useUser = () => {
+  const context = useContext(UserContext);
+  if (context === undefined) {
+    throw new Error('useUser must be used within a UserProvider');
+  }
+  return context;
+};

@@ -1,10 +1,10 @@
 import express from 'express';
 import Cart from '../models/cartModel.js';
 import Product from '../models/productModel.js';
+import authMiddleware from '../middlewares/authMiddleware.js';
 
 const router = express.Router();
 
-// Get cart items with populated product details
 router.get('/:userId', async (req, res) => {
     try {
         const { userId } = req.params;
@@ -22,9 +22,7 @@ router.get('/:userId', async (req, res) => {
             return res.status(200).json([]);
         }
         
-        // Return just the product IDs (to match your frontend expectation)
-        const productIds = cart.products.map(product => product._id.toString());
-        res.status(200).json(productIds);
+        res.status(200).json(cart.products || []);
     } catch (error) {
         console.error('Error fetching cart:', error);
         res.status(500).json({ 
@@ -35,7 +33,6 @@ router.get('/:userId', async (req, res) => {
     }
 });
 
-// Get cart items with full product details (alternative endpoint)
 router.get('/details/:userId', async (req, res) => {
     try {
         const { userId } = req.params;
@@ -76,7 +73,6 @@ router.post('/add', async (req, res) => {
             });
         }
 
-        // Check if product exists
         const product = await Product.findById(productId);
         if (!product) {
             return res.status(404).json({ 
@@ -85,7 +81,6 @@ router.post('/add', async (req, res) => {
             });
         }
 
-        // Check if product is available
         if (product.status !== 'available') {
             return res.status(400).json({ 
                 success: false, 
@@ -93,7 +88,6 @@ router.post('/add', async (req, res) => {
             });
         }
 
-        // Check if user is trying to add their own product
         if (product.sellerId.toString() === userId) {
             return res.status(400).json({ 
                 success: false, 

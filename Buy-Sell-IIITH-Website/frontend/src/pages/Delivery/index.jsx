@@ -36,16 +36,13 @@ const DeliveryPage = () => {
   const [otpInput, setOtpInput] = useState('');
   const [verifyingOtp, setVerifyingOtp] = useState(false);
   
-  // Add ref for OTP input to maintain focus
   const otpInputRef = useRef(null);
-  // Add ref to track if we should focus
   const shouldFocusRef = useRef(false);
 
   useEffect(() => {
     if (user) fetchPendingOrders();
   }, [user]);
 
-  // Focus the input when modal opens - more stable approach
   useEffect(() => {
     if (modalOpen && shouldFocusRef.current) {
       const focusTimer = setTimeout(() => {
@@ -56,7 +53,7 @@ const DeliveryPage = () => {
       }, 200);
       return () => clearTimeout(focusTimer);
     }
-  }, [modalOpen, otpInput]); // Include otpInput to refocus after state changes
+  }, [modalOpen, otpInput]);
 
   const fetchPendingOrders = async () => {
     if (!user) return;
@@ -66,13 +63,11 @@ const DeliveryPage = () => {
       const response = await getSellerPendingOrders(user._id);
       console.log('Pending orders response:', response);
       if (response.status === 200) {
-        // Filter out orders with missing product data
         const validOrders = response.data.orders.filter(order => 
           order.productId && order.buyerId
         );
         setPendingOrders(validOrders);
         
-        // Log any invalid orders for debugging
         const invalidOrders = response.data.orders.filter(order => 
           !order.productId || !order.buyerId
         );
@@ -98,16 +93,14 @@ const DeliveryPage = () => {
     try {
       const response = await verifyAndCompleteOrder(orderId, otpInput);
       if (response.status === 200) {
-        message.success('Order completed successfully! 🎉');
-        // Clear all states in proper order
+        message.success('Order completed successfully!');
         handleCloseModal();
         await fetchPendingOrders();
       }
     } catch (error) {
       if (error.response?.status === 400) {
         message.error('Invalid OTP. Please try again.');
-        setOtpInput(''); // Clear invalid OTP but keep modal open
-        // Refocus the input after clearing
+        setOtpInput('');
         shouldFocusRef.current = true;
         setTimeout(() => {
           if (otpInputRef.current && modalOpen) {
@@ -123,7 +116,6 @@ const DeliveryPage = () => {
     }
   };
 
-  // Centralized modal close handler
   const handleCloseModal = useCallback(() => {
     setModalOpen(false);
     setSelectedOrder(null);
@@ -131,33 +123,28 @@ const DeliveryPage = () => {
     setVerifyingOtp(false);
   }, []);
 
-  // Handle opening modal
   const handleOpenModal = useCallback((order) => {
     if (!modalOpen && !selectedOrder) {
       setSelectedOrder(order);
-      setOtpInput(''); // Clear input first
-      shouldFocusRef.current = true; // Mark that we need to focus
+      setOtpInput('');
+      shouldFocusRef.current = true;
       setModalOpen(true);
     }
   }, [modalOpen, selectedOrder]);
 
-  // Improved OTP input change handler - prevent unnecessary re-renders
   const handleOtpChange = useCallback((e) => {
     const value = e.target.value;
     const numericValue = value.replace(/\D/g, '').slice(0, 6);
     
-    // Only update if value actually changed
     if (numericValue !== otpInput) {
       setOtpInput(numericValue);
     }
   }, [otpInput]);
 
-  // Handle key press for better UX
   const handleOtpKeyPress = useCallback((e) => {
     if (e.key === 'Enter' && otpInput.length === 6 && !verifyingOtp) {
       handleVerifyOTP(selectedOrder?._id);
     }
-    // Allow only numeric input
     if (!/\d/.test(e.key) && !['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Tab', 'Enter'].includes(e.key)) {
       e.preventDefault();
     }
@@ -207,7 +194,6 @@ const DeliveryPage = () => {
         destroyOnClose={true}
         centered
         afterClose={() => {
-          // Ensure complete cleanup after modal animation
           setSelectedOrder(null);
           setOtpInput('');
           setVerifyingOtp(false);
@@ -246,7 +232,6 @@ const DeliveryPage = () => {
               inputMode="numeric"
               pattern="[0-9]*"
               onBlur={(e) => {
-                // Prevent input from losing focus unless modal is closing
                 if (modalOpen && !verifyingOtp) {
                   setTimeout(() => {
                     if (otpInputRef.current && modalOpen) {
@@ -269,7 +254,6 @@ const DeliveryPage = () => {
   };
 
   const OrderCard = ({ order }) => {
-    // Add safety checks for all nested properties
     const productName = order.productId?.name || 'Product information unavailable';
     const buyerFirstName = order.buyerId?.firstName || 'Unknown';
     const buyerLastName = order.buyerId?.lastName || '';
@@ -277,10 +261,8 @@ const DeliveryPage = () => {
     const transactionId = order.transactionId || 'N/A';
     const createdAt = order.createdAt ? new Date(order.createdAt) : new Date();
 
-    // Show warning for incomplete data
     const hasIncompleteData = !order.productId || !order.buyerId;
 
-    // Button click handler with proper event handling
     const handleCompleteDelivery = useCallback((e) => {
       e.preventDefault();
       e.stopPropagation();
@@ -290,7 +272,6 @@ const DeliveryPage = () => {
       }
     }, [modalOpen, hasIncompleteData, selectedOrder, verifyingOtp, order, handleOpenModal]);
 
-    // Check if this order is currently being processed
     const isCurrentOrder = selectedOrder?._id === order._id;
 
     return (

@@ -1,11 +1,10 @@
 import axios from 'axios';
-
-const BASE_URL = "http://localhost:5000";
+import { API_BASE_URL } from '../config/api';
 
 export const callGeminiAPI = async (message, conversationHistory) => {
   try {
     console.log("conversationHistory", conversationHistory);
-    const response = await axios.post(`${BASE_URL}/api/support/chatbot`, { 
+    const response = await axios.post(`${API_BASE_URL}/api/support/chatbot`, { 
       message: message, 
       conversationHistory: conversationHistory 
     });
@@ -14,6 +13,5 @@ export const callGeminiAPI = async (message, conversationHistory) => {
     console.error('Error calling Gemini API:', error);
     console.log("Error here.");
     return "Error communicating with the chatbot.";
-
   }
 };

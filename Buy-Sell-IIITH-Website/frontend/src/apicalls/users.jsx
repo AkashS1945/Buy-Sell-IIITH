@@ -1,11 +1,10 @@
 import axios from "axios";
-
-const API_BASE_URL = 'http://localhost:5000/api/users';
+import { API_BASE_URL } from '../config/api';
 
 // Register user
 export const Registeruser = async (payload) => {
     try {
-        const response = await axios.post(`${API_BASE_URL}/register`, payload);
+        const response = await axios.post(`${API_BASE_URL}/api/users/register`, payload);
         console.log('Registration successful:', response.data);
         return {
             success: true,
@@ -16,7 +15,7 @@ export const Registeruser = async (payload) => {
         console.error('Registration error:', error.response?.data || error.message);
         return {
             success: false,
-            message: error.response?.data?.msg || error.message,
+            message: error.response?.data?.msg || error.response?.data?.message || error.message,
             status: error.response?.status || 500
         };
     }   
@@ -25,23 +24,31 @@ export const Registeruser = async (payload) => {
 // Login user
 export const Loginuser = async (payload) => {
     try {
-        const response = await axios.post(`${API_BASE_URL}/login`, payload);
-        console.log('Login successful:', response.data);
+        console.log('Loginuser called with payload:', { email: payload.email });
+        const response = await axios.post(`${API_BASE_URL}/api/users/login`, payload);
+        console.log('Login API response:', response);
         
-        if (response.data.token) {
-            localStorage.setItem('token', response.data.token);
+        // Check for token in response
+        if (response.data && response.data.token) {
+            console.log('Token found in response');
+            return {
+                success: true,
+                data: response.data,
+                status: response.status
+            };
+        } else {
+            console.log('No token in response:', response.data);
+            return {
+                success: false,
+                message: 'No authentication token received',
+                status: response.status
+            };
         }
-        
-        return {
-            success: true,
-            data: response.data,
-            status: response.status
-        };
     } catch (error) {
-        console.error('Login error:', error.response?.data || error.message);
+        console.error('Login API error:', error.response?.data || error.message);
         return {
             success: false,
-            message: error.response?.data?.msg || error.message,
+            message: error.response?.data?.msg || error.response?.data?.message || 'Login failed',
             status: error.response?.status || 500
         };
     }
@@ -51,37 +58,50 @@ export const Loginuser = async (payload) => {
 export const GetCurrentUser = async () => { 
     try {
         const token = localStorage.getItem('token');
+        console.log('GetCurrentUser - Token exists:', !!token);
+        
         if (!token) {
+            console.log('No token found in GetCurrentUser');
             return {
                 success: false,
                 message: 'No token found'
             };
         }
         
-        console.log("Token in getcurrentuser", token);
+        console.log("Making API call to get current user");
         
-        const response = await axios.post(`${API_BASE_URL}/get-current-user`, null, {
+        const response = await axios.post(`${API_BASE_URL}/api/users/get-current-user`, {}, {
             headers: {
                 'Authorization': `Bearer ${token}`
             }
         });
         
-        console.log("Response from getcurrentuser", response.data);
-        return {
-            success: true,
-            data: response.data.user
-        };
-    } catch (error) {
-        console.error('Error fetching current user:', error.response?.data || error.message);
+        console.log("GetCurrentUser API response:", response);
         
-        // If token invalid-removing from localStorage
+        if (response.data && response.data.user) {
+            console.log("User data found in response");
+            return {
+                success: true,
+                data: response.data.user
+            };
+        } else {
+            console.log("No user data in response:", response.data);
+            return {
+                success: false,
+                message: 'No user data received'
+            };
+        }
+    } catch (error) {
+        console.error('GetCurrentUser error:', error.response?.data || error.message);
+        
         if (error.response?.status === 401) {
+            console.log('Token invalid, removing from localStorage');
             localStorage.removeItem('token');
         }
         
         return {
             success: false,
-            message: error.response?.data?.error || error.message
+            message: error.response?.data?.error || error.response?.data?.message || error.message
         };
     }
 }
@@ -97,7 +117,7 @@ export const updateUser = async (formData) => {
         console.log("Token in updateUser", token);
         console.log("Form data:", formData);
         
-        const response = await axios.put(`${API_BASE_URL}/update`, formData, {
+        const response = await axios.put(`${API_BASE_URL}/api/users/update`, formData, {
             headers: {
                 'Authorization': `Bearer ${token}`
             }
@@ -111,19 +131,18 @@ export const updateUser = async (formData) => {
     } catch (error) {
         console.error('Error updating user:', error.response?.data || error.message);
         
-        // If token invalid-removing from localStorage
         if (error.response?.status === 401) {
             localStorage.removeItem('token');
         }
         
         return {
             success: false,
-            message: error.response?.data?.msg || error.message,
+            message: error.response?.data?.msg || error.response?.data?.message || error.message,
         };
     }
 }
 
-// Logout user (helper function)
+// Logout user
 export const logoutUser = () => {
     localStorage.removeItem('token');
     return {

@@ -60,7 +60,6 @@ const productSchema = new mongoose.Schema({
     timestamps: true
 });
 
-// Index for better query performance
 productSchema.index({ category: 1, status: 1 });
 productSchema.index({ sellerId: 1 });
 productSchema.index({ createdAt: -1 });

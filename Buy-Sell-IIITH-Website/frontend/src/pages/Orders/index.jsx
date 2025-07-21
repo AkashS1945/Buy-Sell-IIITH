@@ -26,11 +26,9 @@ const OrdersHistory = () => {
       if (response.status === 200) {
         const { boughtItems: bought, soldItems: sold } = response.data;
         
-        // Filter out orders with missing essential data and log them
         const validBought = bought.filter(order => order.productId && order.sellerId);
         const validSold = sold.filter(order => order.productId && order.buyerId);
         
-        // Log invalid orders for debugging
         const invalidBought = bought.filter(order => !order.productId || !order.sellerId);
         const invalidSold = sold.filter(order => !order.productId || !order.buyerId);
         
@@ -57,7 +55,6 @@ const OrdersHistory = () => {
   };
 
   const OrderCard = ({ order, type }) => {
-    // Safety checks for all properties
     const productName = order.productId?.name || 'Product information unavailable';
     const transactionId = order.transactionId || 'N/A';
     const amount = order.amount || 0;
@@ -65,7 +62,6 @@ const OrdersHistory = () => {
     const createdAt = order.createdAt ? new Date(order.createdAt) : new Date();
     const plainOTP = order.plainOTP || 'N/A';
     
-    // Different data based on order type
     let sellerOrBuyerName = 'Unknown';
     let sellerOrBuyerLabel = '';
     
@@ -77,7 +73,6 @@ const OrdersHistory = () => {
       sellerOrBuyerLabel = 'Seller';
     }
     
-    // Check if essential data is missing
     const hasIncompleteData = !order.productId || (!order.sellerId && type !== 'sold') || (!order.buyerId && type === 'sold');
 
     return (

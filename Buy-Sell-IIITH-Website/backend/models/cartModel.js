@@ -5,7 +5,7 @@ const cartSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
         required: true,
-        unique: true  // Each user has one cart
+        unique: true
     },
     products: [{
         type: mongoose.Schema.Types.ObjectId,
@@ -13,13 +13,11 @@ const cartSchema = new mongoose.Schema({
         required: true
     }]
 }, {
-    timestamps: true  // Adds createdAt and updatedAt automatically
+    timestamps: true
 });
 
-// Index for faster queries
 cartSchema.index({ userId: 1 });
 
-// Method to add product to cart
 cartSchema.methods.addProduct = function(productId) {
     if (!this.products.includes(productId)) {
         this.products.push(productId);
@@ -27,13 +25,11 @@ cartSchema.methods.addProduct = function(productId) {
     return this.save();
 };
 
-// Method to remove product from cart
 cartSchema.methods.removeProduct = function(productId) {
     this.products = this.products.filter(id => id.toString() !== productId.toString());
     return this.save();
 };
 
-// Method to clear cart
 cartSchema.methods.clearCart = function() {
     this.products = [];
     return this.save();

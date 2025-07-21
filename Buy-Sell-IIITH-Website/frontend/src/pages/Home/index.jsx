@@ -60,14 +60,15 @@ const Home = () => {
       const response = await getAllProducts();
       console.log("Products response:", response);
       
-      // Handle different response structures
       let productsData = [];
-      if (Array.isArray(response)) {
-        productsData = response;
-      } else if (response.data && Array.isArray(response.data)) {
+      if (Array.isArray(response.data)) {
         productsData = response.data;
-      } else if (response.products && Array.isArray(response.products)) {
-        productsData = response.products;
+      } else if (response.data && Array.isArray(response.data.data)) {
+        productsData = response.data.data;
+      } else if (response.data && Array.isArray(response.data.products)) {
+        productsData = response.data.products;
+      } else if (Array.isArray(response)) {
+        productsData = response;
       }
       
       console.log("Processed products data:", productsData);
@@ -90,7 +91,6 @@ const Home = () => {
   const applyFilters = () => {
     let filtered = [...products];
   
-    // Dynamic search filter - FIXED
     if (searchTerm.trim()) {
       const searchLower = searchTerm.toLowerCase().trim();
       filtered = filtered.filter(product => {
@@ -99,7 +99,6 @@ const Home = () => {
         const description = product.description || '';
         const category = product.category || '';
         
-        // Return true only if search term is found
         return name.toLowerCase().includes(searchLower) ||
                description.toLowerCase().includes(searchLower) ||
                category.toLowerCase().includes(searchLower);
@@ -181,7 +180,6 @@ const Home = () => {
     return categoryData?.icon || "📦";
   };
 
-  // Standardized product image placeholder - clean and consistent
   const getProductImagePlaceholder = (productName) => {
     return (
       <div className="h-48 w-full bg-gradient-to-br from-gray-100 to-gray-200 flex flex-col items-center justify-center border-b">
@@ -341,7 +339,7 @@ const Home = () => {
               {/* Results Count */}
               <div className="mt-6 p-3 bg-indigo-50 rounded-lg border border-indigo-200">
                 <p className="text-indigo-800 text-sm font-medium">
-                  📊 {filteredProducts.length} {filteredProducts.length === 1 ? 'product' : 'products'} found
+                  {filteredProducts.length} {filteredProducts.length === 1 ? 'product' : 'products'} found
                   {hasActiveFilters && ` (filtered from ${products.length})`}
                 </p>
               </div>
@@ -360,7 +358,6 @@ const Home = () => {
             ) : filteredProducts.length > 0 ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6">
                 {filteredProducts.map((product) => {
-                  // Safety check for product data
                   if (!product || !product._id) {
                     console.warn("Invalid product data:", product);
                     return null;

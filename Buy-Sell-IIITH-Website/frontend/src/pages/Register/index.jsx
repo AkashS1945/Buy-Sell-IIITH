@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { message } from 'antd';
 import axios from 'axios';
 import { useNavigate, Link } from 'react-router-dom';
+import { API_BASE_URL } from '../../config/api';
+import { Registeruser } from '../../apicalls/users';
 import { 
   UserOutlined, 
   MailOutlined, 
@@ -13,7 +15,7 @@ import {
   CheckCircleOutlined
 } from '@ant-design/icons';
 
-const BASE_URL = "http://localhost:5000";
+
 
 function Register() {
   const [errors, setErrors] = useState({});
@@ -49,19 +51,21 @@ function Register() {
   const onFinish = async (values) => {
     setLoading(true);
     try {
-      const response = await axios.post(`${BASE_URL}/api/users/register`, values);
+      const response = await Registeruser(values);
 
-      if (response.status === 201) {
+      if (response.success && response.status === 201) {
         message.success('Account created successfully! Please sign in to continue.');
         navigate('/login');
+      } else {
+        if (response.status === 400) {
+          message.error('An account with this email already exists.');
+        } else {
+          message.error(response.message || 'Registration failed. Please try again.');
+        }
       }
     } catch (error) {
       console.error('Registration error:', error);
-      if (error.response?.status === 400) {
-        message.error('An account with this email already exists.');
-      } else {
-        message.error('Registration failed. Please try again.');
-      }
+      message.error('Registration failed. Please try again.');
     } finally {
       setLoading(false);
     }

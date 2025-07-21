@@ -12,25 +12,42 @@ const Sell = () => {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(false);
   const [addingProduct, setAddingProduct] = useState(false);
-  const { user } = useUser(); 
+  const { user } = useUser();
 
   const fetchProducts = async () => {
     setLoading(true);
     try {
       console.log("Fetching products for user:", user._id);
-      const response = await getAllProducts(); // Get all products first
+      const response = await getAllProducts();
       console.log("Products fetched:", response);
-      
-      // Filter products by current user
-      const userProducts = response.filter(product => 
+
+      let productsData = [];
+      if (Array.isArray(response.data)) {
+        productsData = response.data;
+      } else if (response.data && Array.isArray(response.data.data)) {
+        productsData = response.data.data;
+      } else if (response.data && Array.isArray(response.data.products)) {
+        productsData = response.data.products;
+      } else if (Array.isArray(response)) {
+        productsData = response;
+      }
+
+      console.log("Processed products data:", productsData);
+
+      const userProducts = productsData.filter(product =>
         product.sellerId && product.sellerId._id === user._id
       );
-      
+
       console.log("User products:", userProducts);
       setProducts(userProducts || []);
+
+      if (userProducts.length === 0) {
+        console.log("No products found for user");
+      }
     } catch (error) {
       console.error("Error fetching products:", error);
       message.error("Failed to load products. Please try again.");
+      setProducts([]);
     } finally {
       setLoading(false);
     }
@@ -72,7 +89,7 @@ const Sell = () => {
     setAddingProduct(true);
     try {
       console.log("Adding product with values:", values);
-      
+
       const payload = {
         name: values.name,
         description: values.description,
@@ -90,7 +107,7 @@ const Sell = () => {
 
       const response = await addProduct(payload);
       console.log("Add product response:", response);
-      
+
       if (response.status === 201) {
         message.success("Product added successfully! 🎉");
         setIsModalVisible(false);
@@ -100,8 +117,7 @@ const Sell = () => {
       }
     } catch (error) {
       console.error("Error adding product:", error);
-      
-      // More specific error handling
+
       if (error.response?.data?.message) {
         message.error(error.response.data.message);
       } else if (error.response?.status === 500) {
@@ -191,7 +207,7 @@ const Sell = () => {
 
   // Mobile card component
   const ProductCard = ({ product }) => (
-    <Card 
+    <Card
       className="mb-4 shadow-sm hover:shadow-md transition-all duration-300 border"
       styles={{ body: { padding: '16px' } }}
     >
@@ -253,8 +269,8 @@ const Sell = () => {
                 {products.length} {products.length === 1 ? 'product' : 'products'} listed
               </Text>
             </div>
-            <Button 
-              type="primary" 
+            <Button
+              type="primary"
               icon={<PlusOutlined />}
               onClick={handleOpenModal}
               size="large"
@@ -271,16 +287,16 @@ const Sell = () => {
         <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
           {/* Desktop Table View */}
           <div className="hidden lg:block">
-            <Table 
-              dataSource={products} 
-              columns={columns} 
+            <Table
+              dataSource={products}
+              columns={columns}
               rowKey="_id"
               loading={loading}
               pagination={{
                 pageSize: 10,
                 showSizeChanger: false,
                 showQuickJumper: true,
-                showTotal: (total, range) => 
+                showTotal: (total, range) =>
                   `${range[0]}-${range[1]} of ${total} products`,
               }}
               className="[&_.ant-table-thead>tr>th]:bg-gray-50 [&_.ant-table-thead>tr>th]:font-semibold [&_.ant-table-thead>tr>th]:text-gray-700"
@@ -307,8 +323,8 @@ const Sell = () => {
                 <div className="text-6xl text-gray-300 mb-4">📦</div>
                 <Title level={4} className="text-gray-600 mb-2">No products yet</Title>
                 <Text className="text-gray-500 mb-6">Start selling by adding your first product!</Text>
-                <Button 
-                  type="primary" 
+                <Button
+                  type="primary"
                   icon={<PlusOutlined />}
                   onClick={handleOpenModal}
                   size="large"

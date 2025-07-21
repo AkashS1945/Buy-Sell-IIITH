@@ -101,7 +101,7 @@ router.get('/get-products', async (req, res) => {
         console.log(`Found ${products.length} products`);
         console.log("Sample product:", products[0]);
 
-        // Return products directly (not wrapped in data object)
+        // Return products
         res.status(200).json(products);
     } catch (error) {
         console.error('Error fetching products:', error);
@@ -130,9 +130,7 @@ router.get('/get-product/:id', async (req, res) => {
 
         res.status(201).json({ 
             success: true, 
-            data: {
-                product: product
-            }
+            data: product
         });
     } catch (error) {
         console.error('Error fetching product:', error);

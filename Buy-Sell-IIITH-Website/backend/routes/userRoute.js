@@ -64,13 +64,9 @@ router.post('/register', async (req, res) => {
 
 // User Login
 router.post('/login', async (req, res) => {
-    const { email, password, recaptchaToken } = req.body;
-
     try {
-        // Verify reCAPTCHA first
-        if (!recaptchaToken) {
-            return res.status(400).json({ msg: 'reCAPTCHA token is required' });
-        }
+        const { email, password, recaptchaToken } = req.body;
+        console.log("Login attempt for:", email);
 
         const isRecaptchaValid = await verifyRecaptcha(recaptchaToken);
         if (!isRecaptchaValid) {
@@ -93,7 +89,7 @@ router.post('/login', async (req, res) => {
 
         const token = jwt.sign(payload, process.env.jwt_secret_key);
 
-        res.status(201).json({ token: token });
+        res.status(200).json({ token: token });
     } catch (err) {
         console.error(err.message);
         res.status(500).send('Server error');

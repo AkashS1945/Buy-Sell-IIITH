@@ -9,75 +9,81 @@ import { placeOrder } from "../../apicalls/orders";
 const { Title, Text } = Typography;
 
 const Cart = () => {
-  const { user } = useUser();
+  const userContext = useUser();
+  
+  if (!userContext) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <Spin size="large" />
+          <p className="mt-4 text-gray-600">Loading user context...</p>
+        </div>
+      </div>
+    );
+  }
+
+  const { user } = userContext;
+  
   const [cartProducts, setCartProducts] = useState([]);
   const [totalPrice, setTotalPrice] = useState(0);
   const [loading, setLoading] = useState(false);
   const [orderOTP, setOrderOTP] = useState(null);
 
+  if (!user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <Spin size="large" />
+          <p className="mt-4 text-gray-600">Loading cart...</p>
+        </div>
+      </div>
+    );
+  }
+
   useEffect(() => {
-    if (user) fetchCartItems();
+    if (user?._id) {
+      fetchCartItems();
+    }
   }, [user]);
 
   const fetchCartItems = async () => {
-    if (!user) return;
-    setLoading(true);
+    if (!user?._id) return;
+    
     try {
+      setLoading(true);
       const response = await getCartItems(user._id);
-      console.log("Cart response:", response);
       
-      if (response.status === 200 && response.data) {
-        const productIds = Array.isArray(response.data) ? response.data : [];
+      if (response.status === 200) {
+        const cartData = response.data;
+        console.log("Raw cart data received:", cartData);
+        console.log("Cart data type:", typeof cartData);
+        console.log("Is array:", Array.isArray(cartData));
         
-        if (productIds.length === 0) {
+        if (cartData && cartData.length > 0) {
+          console.log("Sample cart item:", cartData[0]);
+          console.log("Sample cart item keys:", Object.keys(cartData[0] || {}));
+        }
+        
+        if (Array.isArray(cartData) && cartData.length > 0) {
+          const validProducts = cartData.filter(product => 
+            product && product._id && product.name && typeof product.price === 'number'
+          );
+          
+          console.log("Valid products:", validProducts);
+          setCartProducts(validProducts);
+          
+          const total = validProducts.reduce((sum, product) => sum + (product.price || 0), 0);
+          setTotalPrice(total);
+        } else {
           setCartProducts([]);
           setTotalPrice(0);
-          setLoading(false);
-          return;
         }
-
-        const productPromises = productIds.map(async (id) => {
-          try {
-            const productResponse = await getProductById(id);
-            console.log("Product response for ID", id, ":", productResponse);
-            
-            if (productResponse.status === 201) {
-              // Handle different response structures
-              let productData = null;
-              if (productResponse.data?.data?.product) {
-                productData = productResponse.data.data.product;
-              } else if (productResponse.data?.product) {
-                productData = productResponse.data.product;
-              } else if (productResponse.data?.data) {
-                productData = productResponse.data.data;
-              }
-              
-              return productData;
-            }
-            return null;
-          } catch (error) {
-            console.error(`Failed to fetch product ${id}:`, error);
-            return null;
-          }
-        });
-        
-        const productResponses = await Promise.all(productPromises);
-        const validProducts = productResponses.filter(product => 
-          product && 
-          product._id && 
-          product.name && 
-          typeof product.price === 'number' &&
-          product.category
-        );
-        
-        console.log("Valid products:", validProducts);
-        
-        setCartProducts(validProducts);
-        calculateTotal(validProducts);
       }
     } catch (error) {
-      console.error("Failed to fetch cart items:", error);
-      message.error("Failed to load cart items");
+      console.error('Error fetching cart items:', error);
+      message.error('Failed to load cart items');
+      setCartProducts([]);
+      setTotalPrice(0);
     } finally {
       setLoading(false);
     }
@@ -92,30 +98,32 @@ const Cart = () => {
   };
 
   const handleRemoveFromCart = async (productId) => {
-    if (!user) return;
-    setLoading(true);
+    if (!user?._id) return;
+    
     try {
       const response = await removeFromCart(user._id, productId);
       if (response.status === 200) {
-        message.success("Item removed from cart!");
+        message.success('Item removed from cart');
         fetchCartItems();
-      } else {
-        message.error("Failed to remove item.");
       }
     } catch (error) {
-      console.error("Failed to remove item from cart:", error);
-      message.error("Error removing item.");
-    } finally {
-      setLoading(false);
+      console.error('Error removing from cart:', error);
+      message.error('Failed to remove item from cart');
     }
   };
 
   const handlePlaceOrder = async () => {
     if (!user || cartProducts.length === 0) return;
-  
+
     setLoading(true);
     try {
+      console.log('Placing order with:', {
+        buyerId: user._id,
+        cartItems: cartProducts
+      });
+
       const response = await placeOrder(user._id, cartProducts);
+      console.log('Order response:', response);
       
       if (response.status === 200) {
         await clearCart(user._id);
@@ -123,17 +131,17 @@ const Cart = () => {
         setCartProducts([]);
         setTotalPrice(0);
         
-        message.success(`${cartProducts.length} order(s) placed successfully! 🎉`);
+        message.success(`${cartProducts.length} order(s) placed successfully!`);
         
         if (response.data.otp) {
-          setOrderOTP(response.data.otp);
-          Modal.info({
+          Modal.success({
             title: 'Order Placed Successfully!',
             content: (
               <div className="space-y-4">
                 <p>Your order has been placed. Here's your OTP for delivery verification:</p>
-                <div className="bg-blue-50 p-4 rounded-lg text-center">
-                  <p className="text-2xl font-mono font-bold text-blue-600">
+                <div className="bg-green-50 p-4 rounded-lg text-center border border-green-200">
+                  <p className="text-sm text-green-600 mb-2">Delivery OTP</p>
+                  <p className="text-3xl font-mono font-bold text-green-800">
                     {response.data.otp}
                   </p>
                 </div>
@@ -142,7 +150,8 @@ const Cart = () => {
                 </p>
               </div>
             ),
-            width: 400,
+            width: 450,
+            okText: 'Got it!',
           });
         }
       } else {
@@ -157,25 +166,21 @@ const Cart = () => {
     }
   };
 
-  const getProductImagePlaceholder = (category, productName) => {
-    const categoryEmojis = {
-      electronics: "📱💻📺⌚",
-      furniture: "🪑🛏️🚪🪞", 
-      clothing: "👕👗👔👠",
-      books: "📚📖📝📄",
-      beauty: "💄💅💋🧴",
-      sports: "⚽🏀🎾🏐",
-      grocery: "🍎🥛🍞🥗",
-      others: "📦🎁✨🛍️"
+  const getProductImagePlaceholder = (category, name) => {
+    const placeholders = {
+      electronics: '📱',
+      books: '📚',
+      furniture: '🪑',
+      clothing: '👕',
+      sports: '⚽',
+      default: '📦'
     };
-
-    const emojis = categoryEmojis[category || 'others'] || "📦✨🎁🛍️";
-    const emojiArray = emojis.split('');
-    const randomEmoji = emojiArray[Math.floor(Math.random() * emojiArray.length)];
+    
+    const icon = placeholders[category?.toLowerCase()] || placeholders.default;
     
     return (
-      <div className="w-24 h-24 bg-gradient-to-br from-indigo-100 to-purple-100 rounded-lg flex items-center justify-center text-2xl flex-shrink-0">
-        {randomEmoji}
+      <div className="w-20 h-20 bg-gradient-to-br from-indigo-100 to-blue-100 rounded-xl flex items-center justify-center text-3xl border border-indigo-200">
+        {icon}
       </div>
     );
   };
@@ -220,8 +225,6 @@ const Cart = () => {
             {/* Cart Items */}
             <div className="lg:col-span-2 space-y-4">
               {cartProducts.map((product) => {
-                // Safety checks for product data
-                if (!product || !product._id) return null;
                 
                 return (
                   <Card 
@@ -293,20 +296,12 @@ const Cart = () => {
                 
                 <div className="space-y-4">
                   <div className="space-y-2">
-                    {cartProducts.map((product) => {
-                      if (!product || !product._id) return null;
-                      
-                      return (
-                        <div key={product._id} className="flex justify-between text-sm">
-                          <Text className="text-gray-600 line-clamp-1 flex-1 mr-2">
-                            {product.name || 'Unknown Product'}
-                          </Text>
-                          <Text className="text-gray-800 font-medium">
-                            ${(product.price || 0).toFixed(2)}
-                          </Text>
-                        </div>
-                      );
-                    })}
+                    {cartProducts.map((product) => (
+                      <div key={product._id} className="flex justify-between text-sm">
+                        <span className="text-gray-600 truncate pr-2">{product.name}</span>
+                        <span className="text-gray-800 font-medium">${(product.price || 0).toFixed(2)}</span>
+                      </div>
+                    ))}
                   </div>
                   
                   <Divider className="my-4" />
@@ -330,9 +325,6 @@ const Cart = () => {
                     Place Order
                   </Button>
                   
-                  <Text className="text-xs text-gray-500 text-center block">
-                    By placing this order, you agree to our terms and conditions
-                  </Text>
                 </div>
               </Card>
             </div>

@@ -1,11 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import axios from 'axios';
+import { Loginuser } from '../../apicalls/users';
 import { message } from 'antd';
 import ReCAPTCHA from 'react-google-recaptcha';
 import { EyeInvisibleOutlined, EyeTwoTone, UserOutlined, LockOutlined, ShoppingCartOutlined, SafetyOutlined } from '@ant-design/icons';
-
-const BASE_URL = "http://localhost:5000";
 
 function Login() {
   const navigate = useNavigate();
@@ -40,17 +38,27 @@ function Login() {
         recaptchaToken: recaptchaToken
       };
 
-      const response = await axios.post(`${BASE_URL}/api/users/login`, loginData);
+      console.log("Attempting login with:", { email: loginData.email });
       
-      if (response.status === 201 && response.data.token) {
+      const response = await Loginuser(loginData);
+      
+      console.log("Login response:", response);
+      
+      if (response.success && response.data && response.data.token) {
+        console.log("Login successful, token received");
         localStorage.setItem('token', response.data.token);
         message.success('Welcome back!');
-        navigate('/profile');
+        
+        window.location.href = '/';
+      } else {
+        console.log("Login failed:", response.message);
+        setErrors({ login: response.message || 'Login failed' });
+        message.error(response.message || 'Login failed. Please check your credentials.');
       }
     } catch (error) {
       console.error('Login error:', error);
-      setErrors({ login: 'Invalid email or password. Please try again.' });
-      message.error('Login failed. Please check your credentials.');
+      setErrors({ login: 'An error occurred during login. Please try again.' });
+      message.error('Login failed. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -79,7 +87,7 @@ function Login() {
 
   useEffect(() => {
     if (localStorage.getItem('token')) {
-      navigate('/profile');
+      navigate('/');
     }
   }, [navigate]);
 

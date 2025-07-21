@@ -28,9 +28,9 @@ const AddProductModal = ({ isVisible, onCancel, onSave }) => {
     form
       .validateFields()
       .then((values) => {
-        console.log("Form values:", values); // Debug log
+        console.log("Form values:", values);
         
-        // Ensure all required fields are present and properly formatted
+        //make sure all required fields are present and properly formatted
         const formattedValues = {
           name: values.name?.trim(),
           description: values.description?.trim(),
@@ -51,7 +51,6 @@ const AddProductModal = ({ isVisible, onCancel, onSave }) => {
       .catch((error) => {
         console.log("Validation Failed:", error);
         
-        // Show specific validation errors
         const errorFields = error.errorFields;
         if (errorFields && errorFields.length > 0) {
           const firstError = errorFields[0];
